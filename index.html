@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>盤點系統</title>
-
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
   <meta name="theme-color" content="#111827" />
@@ -28,8 +27,8 @@
       <button id="btnStopScan" class="btn secondary" disabled>停止掃描</button>
     </div>
 
-    <div class="hint" id="hintText">
-      支援：EAN-13 / Code128（只掃框內；ROI 會放大 1.5 倍；掃到後輸入數量，確定後回到掃描）
+    <div class="hint">
+      支援：EAN-13 / Code128（只掃框內；ROI 解碼放大 1.5 倍；掃到後輸入數量，確定後回到掃描）
     </div>
 
     <div class="scanner">
@@ -72,10 +71,10 @@
     <div class="dialogTitle">輸入盤點數量</div>
     <div id="dlgCode" class="dialogSub"></div>
 
-    <div class="quickQtyRow" aria-label="快速輸入">
-      <button id="btnQ1"  class="btn secondary" type="button">1</button>
-      <button id="btnQ3"  class="btn secondary" type="button">3</button>
-      <button id="btnQ5"  class="btn secondary" type="button">5</button>
+    <div class="quickQtyRow">
+      <button id="btnQ1" class="btn secondary" type="button">1</button>
+      <button id="btnQ3" class="btn secondary" type="button">3</button>
+      <button id="btnQ5" class="btn secondary" type="button">5</button>
       <button id="btnManualJump" class="btn secondary" type="button">手動輸入</button>
     </div>
 
@@ -88,8 +87,6 @@
       <button id="dlgCancel" class="btn secondary" value="cancel">取消</button>
       <button id="dlgOk" class="btn primary" value="ok">確定</button>
     </div>
-
-    <div id="dlgErr" class="error"></div>
   </form>
 </dialog>
 
