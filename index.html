@@ -4,10 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>盤點系統</title>
-
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
-
   <meta name="theme-color" content="#111827" />
 </head>
 <body>
@@ -20,40 +18,51 @@
   </div>
 </header>
 
-<section class="panel">
-  <div class="row">
-    <button id="btnStartScan">開始掃描</button>
-    <button id="btnStopScan" disabled>停止掃描</button>
-  </div>
-  <p class="hint">支援：EAN-13 / Code128（重複掃描會累加）</p>
+<main class="container">
 
-  <div class="scanner">
-    <video id="video" playsinline muted></video>
-    <div id="scanStatus">尚未開始掃描</div>
-  </div>
-</section>
+  <!-- 1) 掃描畫面 -->
+  <section class="panel">
+    <div class="row">
+      <button id="btnStartScan">開始掃描</button>
+      <button id="btnStopScan" disabled>停止掃描</button>
+    </div>
+    <p class="hint" id="hintText">支援：EAN-13 / Code128（掃到後輸入數量，確定後回到掃描）</p>
 
-<section class="panel">
-  <h2>手動輸入（累加）</h2>
-  <input id="manualBarcode" placeholder="輸入條碼">
-  <div class="quick">
-    <button id="btnAdd1">+1</button>
-    <button id="btnAdd5">+5</button>
-    <button id="btnAdd10">+10</button>
-    <button id="btnAddCustom">自訂</button>
-  </div>
-</section>
+    <div class="scanner">
+      <video id="video" playsinline muted></video>
+      <div id="scanStatus">尚未開始掃描</div>
+    </div>
+  </section>
 
-<section class="panel">
-  <h2>盤點清單</h2>
-  <div id="count">0</div>
-  <ul id="list"></ul>
-</section>
+  <!-- 手動輸入保留（iOS 掃描不穩時可用） -->
+  <section class="panel">
+    <h2>手動輸入（累加）</h2>
+    <input id="manualBarcode" placeholder="輸入條碼">
+    <div class="quick">
+      <button id="btnAdd1">+1</button>
+      <button id="btnAdd5">+5</button>
+      <button id="btnAdd10">+10</button>
+      <button id="btnAddCustom">自訂</button>
+    </div>
+  </section>
 
+  <section class="panel">
+    <h2>盤點清單</h2>
+    <div id="count">0</div>
+    <ul id="list"></ul>
+  </section>
+
+</main>
+
+<!-- 2) 掃完跳輸入對話框 -->
 <dialog id="qtyDialog">
-  <p id="dlgCode"></p>
-  <input id="qtyInput" type="number" placeholder="數量">
-  <button id="dlgOk">確定</button>
+  <p id="dlgCode" style="margin:0 0 8px 0;font-weight:700;"></p>
+  <input id="qtyInput" type="number" inputmode="numeric" placeholder="輸入盤點數量（整數）" style="width:100%;padding:10px;">
+  <div style="margin-top:10px;display:flex;gap:10px;">
+    <button id="dlgCancel" style="flex:1;">取消</button>
+    <button id="dlgOk" style="flex:1;">確定</button>
+  </div>
+  <div id="dlgErr" style="margin-top:8px;color:#dc2626;min-height:18px;font-size:13px;"></div>
 </dialog>
 
 <script src="app.js"></script>
