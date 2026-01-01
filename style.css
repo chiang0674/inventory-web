@@ -1,0 +1,5 @@
+cat > style.css << 'EOF'
+body{margin:0;font-family:sans-serif;background:#0b1020;color:#e5e7eb}
+button{padding:10px;border-radius:8px}
+.scanner{background:#000;height:300px}
+EOF

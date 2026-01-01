@@ -1,0 +1,66 @@
+cat > index.html << 'EOF'
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>盤點系統（Web）</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#111827" />
+</head>
+<body>
+<header class="topbar">
+  <div class="title">盤點系統</div>
+  <div class="actions">
+    <button id="btnExport" class="btn secondary">匯出 CSV</button>
+    <button id="btnClear" class="btn danger">清空</button>
+  </div>
+</header>
+
+<main class="container">
+  <section class="panel">
+    <div class="row">
+      <button id="btnStartScan" class="btn primary">開始掃描</button>
+      <button id="btnStopScan" class="btn secondary" disabled>停止掃描</button>
+    </div>
+    <div class="hint" id="hintText">支援：EAN-13 / Code128，重複掃描會累加</div>
+    <div class="scanner">
+      <video id="video" playsinline muted></video>
+      <div class="scanOverlay"></div>
+      <div id="scanStatus" class="scanStatus">尚未開始掃描</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panelHeader">
+      <div class="panelTitle">手動輸入</div>
+      <div class="badge subtle">累加</div>
+    </div>
+    <input id="manualBarcode" placeholder="輸入條碼" />
+    <div class="quickRow">
+      <button id="btnAdd1">+1</button>
+      <button id="btnAdd5">+5</button>
+      <button id="btnAdd10">+10</button>
+      <button id="btnAddCustom">自訂</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panelHeader">
+      <div class="panelTitle">盤點清單</div>
+      <div id="countBadge" class="badge">0</div>
+    </div>
+    <ul id="list"></ul>
+  </section>
+</main>
+
+<dialog id="qtyDialog">
+  <input id="qtyInput" type="number" placeholder="數量" />
+  <button id="dlgOk">確定</button>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
+EOF
