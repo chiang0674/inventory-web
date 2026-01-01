@@ -1,5 +1,63 @@
-cat > style.css << 'EOF'
-body{margin:0;font-family:sans-serif;background:#0b1020;color:#e5e7eb}
-button{padding:10px;border-radius:8px}
-.scanner{background:#000;height:300px}
-EOF
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #0b1020;
+  color: #e5e7eb;
+}
+
+.topbar {
+  padding: 10px;
+  background: #111827;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+button {
+  padding: 8px 12px;
+  margin: 4px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.panel {
+  padding: 12px;
+  margin: 10px;
+  background: #111827;
+  border-radius: 10px;
+}
+
+.scanner {
+  margin-top: 10px;
+  background: black;
+  height: 240px;
+  position: relative;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#scanStatus {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0,0,0,.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.quick button {
+  width: 70px;
+}
+
+input {
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
