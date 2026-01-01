@@ -1,3 +1,7 @@
+// ===== App Version =====
+const APP_VERSION = "v0.8.1"; // 想改版號就改這裡
+document.getElementById("appVersion").textContent = APP_VERSION;
+
 // ===== Storage =====
 const STORAGE_KEY = "inventory_v1";
 let inventory = loadInventory();
@@ -43,7 +47,6 @@ const dlgOk = document.getElementById("dlgOk");
 const dlgCancel = document.getElementById("dlgCancel");
 const dlgErr = document.getElementById("dlgErr");
 
-// quick qty buttons
 const btnQ1 = document.getElementById("btnQ1");
 const btnQ3 = document.getElementById("btnQ3");
 const btnQ5 = document.getElementById("btnQ5");
@@ -69,13 +72,14 @@ const roiCtx = roiCanvas.getContext("2d", { willReadFrequently: true });
 // ROI zoom factor
 const ROI_SCALE = 1.5;
 
+// scan speed
+const LOOP_DELAY_MS = isIOS ? 220 : 140;
+
 render();
 setStatus("尚未開始掃描");
 
 // ===== Helpers =====
-function setStatus(msg) {
-  scanStatus.textContent = msg;
-}
+function setStatus(msg) { scanStatus.textContent = msg; }
 
 function render() {
   list.innerHTML = "";
@@ -94,9 +98,7 @@ function addQty(code, qty) {
   render();
 }
 
-function isEan13(v) {
-  return /^[0-9]{13}$/.test(v);
-}
+function isEan13(v) { return /^[0-9]{13}$/.test(v); }
 
 function csvEscape(s) {
   const needs = /[",\n\r]/.test(s);
@@ -104,11 +106,9 @@ function csvEscape(s) {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ===== Dialog: scan -> qty -> back to scan =====
+// ===== Dialog =====
 let currentResolveQty = null;
 
 async function promptQty(code) {
@@ -117,10 +117,7 @@ async function promptQty(code) {
   qtyInput.value = "";
   qtyDialog.showModal();
   qtyInput.focus();
-
-  return new Promise((resolve) => {
-    currentResolveQty = resolve;
-  });
+  return new Promise((resolve) => { currentResolveQty = resolve; });
 }
 
 function resolveQty(valueOrNull) {
@@ -146,22 +143,13 @@ function validateAndResolveFromInput() {
   resolveQty(v);
 }
 
-// Dialog button handlers
-dlgOk.addEventListener("click", (e) => {
-  e.preventDefault();
-  validateAndResolveFromInput();
-});
-dlgCancel.addEventListener("click", (e) => {
-  e.preventDefault();
-  resolveQty(null);
-});
+dlgOk.addEventListener("click", (e) => { e.preventDefault(); validateAndResolveFromInput(); });
+dlgCancel.addEventListener("click", (e) => { e.preventDefault(); resolveQty(null); });
 
-// Quick qty: 1 / 3 / 5 (one-tap confirm)
 btnQ1.addEventListener("click", () => resolveQty(1));
 btnQ3.addEventListener("click", () => resolveQty(3));
 btnQ5.addEventListener("click", () => resolveQty(5));
 
-// Manual jump button (close dialog -> scroll to manual input)
 btnManualJump.addEventListener("click", () => {
   resolveQty(null);
   setTimeout(() => {
@@ -186,7 +174,10 @@ async function startCamera() {
   stream = await navigator.mediaDevices.getUserMedia(constraints);
   video.srcObject = stream;
   video.muted = true;
+
+  // iOS: 必須等待 play + metadata 才有 videoWidth
   await video.play();
+  await waitVideoReady();
 }
 
 function stopCamera() {
@@ -196,9 +187,25 @@ function stopCamera() {
   video.srcObject = null;
 }
 
+function waitVideoReady() {
+  return new Promise((resolve) => {
+    const maxMs = 3000;
+    const start = Date.now();
+
+    const tick = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) return resolve();
+      if (Date.now() - start > maxMs) return resolve(); // 放行，但後面 loop 仍會等 videoWidth
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
 // ===== Decoder init =====
 async function initDecoder() {
-  // Prefer native BarcodeDetector
+  detector = null;
+  zxingReader = null;
+
   if ("BarcodeDetector" in window) {
     try {
       const formats = await window.BarcodeDetector.getSupportedFormats();
@@ -211,7 +218,6 @@ async function initDecoder() {
     } catch {}
   }
 
-  // Fallback: ZXing
   await ensureZXing();
   zxingReader = new ZXing.MultiFormatReader();
   const hints = new Map();
@@ -239,10 +245,15 @@ function loadScript(src) {
   });
 }
 
-// ===== ROI mapping: only scan inside box =====
+// ===== ROI mapping =====
 function getRoiRectInVideoPixels() {
   const vRect = video.getBoundingClientRect();
   const bRect = scanBoxEl.getBoundingClientRect();
+
+  // 防呆：避免 0 導致 NaN
+  if (vRect.width <= 0 || vRect.height <= 0) {
+    return { sx: 0, sy: 0, sw: Math.max(1, video.videoWidth), sh: Math.max(1, video.videoHeight) };
+  }
 
   const rx = (bRect.left - vRect.left) / vRect.width;
   const ry = (bRect.top  - vRect.top)  / vRect.height;
@@ -262,7 +273,7 @@ function getRoiRectInVideoPixels() {
   return { sx, sy, sw, sh };
 }
 
-// ROI detect with 1.5x upscaling
+// ===== Detect ROI (scaled) =====
 async function detectFromROI() {
   const { sx, sy, sw, sh } = getRoiRectInVideoPixels();
 
@@ -272,31 +283,25 @@ async function detectFromROI() {
   roiCanvas.width = dw;
   roiCanvas.height = dh;
 
-  // Draw ROI scaled up to canvas
   roiCtx.imageSmoothingEnabled = true;
   roiCtx.drawImage(video, sx, sy, sw, sh, 0, 0, dw, dh);
 
-  // Native detector on canvas
   if (detector) {
     const codes = await detector.detect(roiCanvas);
     if (codes && codes.length > 0) {
       const c = codes[0];
-      return {
-        value: (c.rawValue || "").trim(),
-        format: String(c.format || "").toLowerCase()
-      };
+      return { value: (c.rawValue || "").trim(), format: String(c.format || "").toLowerCase() };
     }
     return null;
   }
 
-  // ZXing decode on scaled ROI imageData
   const imageData = roiCtx.getImageData(0, 0, dw, dh);
   try {
     const luminance = new ZXing.RGBLuminanceSource(imageData.data, dw, dh);
     const binarizer = new ZXing.HybridBinarizer(luminance);
     const bitmap = new ZXing.BinaryBitmap(binarizer);
-
     const result = zxingReader.decode(bitmap);
+
     const value = (result.getText() || "").trim();
     const format = String(result.getBarcodeFormat() || "").toLowerCase();
     if (!value) return null;
@@ -307,8 +312,6 @@ async function detectFromROI() {
 }
 
 // ===== Scan loop =====
-const LOOP_DELAY_MS = isIOS ? 200 : 120;
-
 async function scanLoop() {
   while (scanning) {
     if (handling) { await sleep(LOOP_DELAY_MS); continue; }
@@ -321,7 +324,7 @@ async function scanLoop() {
   }
 }
 
-// ===== Workflow: scan -> dialog -> back to scan =====
+// ===== Workflow =====
 async function handleDetected(value, formatLower) {
   const code = String(value).trim();
   if (!code) return;
@@ -352,12 +355,20 @@ btnStartScan.onclick = async () => {
   btnStartScan.disabled = true;
   btnStopScan.disabled = false;
 
-  setStatus("啟動中…請允許相機");
-  await startCamera();
-  await initDecoder();
+  try {
+    setStatus("啟動中…請允許相機");
+    await startCamera();
+    await initDecoder();
 
-  setStatus(`掃描中…只掃框內（ROI x${ROI_SCALE}）`);
-  scanLoop();
+    setStatus(`掃描中…只掃框內（ROI x${ROI_SCALE}）`);
+    scanLoop();
+  } catch (e) {
+    scanning = false;
+    btnStartScan.disabled = false;
+    btnStopScan.disabled = true;
+    setStatus("相機啟動失敗：請確認 Safari 相機權限 / 不要用 LINE/FB 內建瀏覽器");
+    alert("相機啟動失敗：請確認 Safari 相機權限，並用 Safari 開啟（不要用內建瀏覽器）。");
+  }
 };
 
 btnStopScan.onclick = () => {
@@ -413,7 +424,6 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
       const reg = await navigator.serviceWorker.register("./sw.js");
-
       if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
 
       reg.addEventListener("updatefound", () => {
