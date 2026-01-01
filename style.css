@@ -1,80 +1,148 @@
 :root{
-  --bg:#0b1020; --panel:#111827; --text:#e5e7eb; --muted:#9ca3af;
-  --primary:#2563eb; --danger:#dc2626; --border:rgba(255,255,255,.08);
+  --bg:#0b1020;
+  --panel:#111827;
+  --text:#e5e7eb;
+  --muted:#9ca3af;
+  --primary:#2563eb;
+  --danger:#dc2626;
+  --border:rgba(255,255,255,.08);
 }
 
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif;background:var(--bg);color:var(--text)}
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
 
 .topbar{
-  position:sticky;top:0;z-index:50;
-  padding:12px 14px;background:rgba(17,24,39,.95);backdrop-filter:blur(8px);
+  position:sticky; top:0; z-index:50;
+  padding:12px 14px;
+  background:rgba(17,24,39,.95);
+  backdrop-filter: blur(8px);
   border-bottom:1px solid var(--border);
-  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
 }
-.title{font-weight:800;letter-spacing:.4px}
-.actions{display:flex;gap:8px}
+.brand{ font-weight:900; letter-spacing:.5px; }
+.actions{ display:flex; gap:8px; }
 
-.container{padding:14px;display:grid;gap:14px}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+.container{ padding:14px; display:grid; gap:14px; }
 
-.row{display:flex;gap:10px}
-.btn{border:0;padding:12px 14px;border-radius:12px;font-weight:800;color:#fff;cursor:pointer}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.btn.primary{background:var(--primary);flex:1}
-.btn.secondary{background:rgba(255,255,255,.10)}
-.btn.danger{background:var(--danger)}
-
-.hint{margin-top:10px;color:var(--muted);font-size:13px;line-height:1.4}
-
-.scanner{
-  margin-top:12px;position:relative;overflow:hidden;border-radius:14px;border:1px solid var(--border);
-  background:#000;aspect-ratio:3/4;
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px;
 }
-video{width:100%;height:100%;object-fit:cover}
 
-/* 小掃描框：狹長，只放條碼 */
-.roi{
-  position:absolute;
-  left:12%;
-  top:42%;
-  width:76%;
-  height:14%;
-  border:2px solid rgba(255,255,255,.70);
+.panelHeader{
+  display:flex; justify-content:space-between; align-items:center;
+  gap:10px; margin-bottom:10px;
+}
+.panelTitle{ font-weight:900; }
+.badge{
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.10);
+  font-weight:800;
+}
+
+.row{ display:flex; gap:10px; }
+
+.btn{
+  border:0;
+  padding:12px 14px;
   border-radius:12px;
+  font-weight:800;
+  color:#fff;
+  cursor:pointer;
+}
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.btn.primary{ background:var(--primary); flex:1; }
+.btn.secondary{ background:rgba(255,255,255,.10); }
+.btn.danger{ background:var(--danger); }
+
+.hint{ margin-top:10px; color:var(--muted); font-size:13px; line-height:1.4; }
+
+.field{ display:grid; gap:6px; margin-top:10px; }
+.field span{ color:var(--muted); font-size:12px; }
+.field input{
+  padding:12px 12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  font-size:16px;
+}
+
+/* 相機區塊縮小 */
+.scanner{
+  margin-top:12px;
+  position:relative;
+  overflow:hidden;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:#000;
+  height:220px; /* 想更小可改 200 */
+}
+.scanner video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+/* ROI 框 */
+.scanBox{
+  position:absolute;
+  left:50%; top:50%;
+  width:48%;
+  height:22%;
+  transform:translate(-50%,-50%);
+  border:2px dashed rgba(255,255,255,.85);
+  border-radius:10px;
   box-shadow:0 0 0 9999px rgba(0,0,0,.35);
   pointer-events:none;
 }
 
 .scanStatus{
-  position:absolute;left:10px;right:10px;bottom:10px;
-  background:rgba(0,0,0,.55);padding:8px 10px;border-radius:10px;
-  font-size:13px;color:rgba(255,255,255,.92);
+  position:absolute;
+  left:10px; right:10px; bottom:10px;
+  background:rgba(0,0,0,.55);
+  padding:6px 10px;
+  border-radius:10px;
+  font-size:12px;
+  color:rgba(255,255,255,.92);
 }
 
-.panelHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
-.panelTitle{font-weight:900}
-.badge{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.10);font-weight:900}
-.badge.subtle{background:rgba(37,99,235,.18);color:#c7d2fe}
-
-.empty{color:var(--muted);padding:10px 2px}
-.list{list-style:none;padding:0;margin:0;display:grid;gap:10px}
-.item{border:1px solid var(--border);border-radius:12px;padding:12px;display:grid;grid-template-columns:1fr auto;gap:8px}
-.item .code{font-weight:900;word-break:break-all}
-.item .qty{font-weight:900;color:#c7d2fe;text-align:right}
-.item .sub{color:var(--muted);font-size:12px;grid-column:1/-1}
-
-.dialog{border:0;border-radius:14px;padding:0;width:min(92vw,420px)}
-.dialogBody{padding:14px;background:var(--panel);color:var(--text)}
-.dialogTitle{font-weight:900;margin-bottom:6px}
-.dialogSub{color:var(--muted);margin-bottom:12px;word-break:break-all}
-.field{display:grid;gap:6px;margin-bottom:12px}
-.field input{
-  padding:12px;border-radius:12px;border:1px solid var(--border);
-  background:rgba(255,255,255,.06);color:var(--text);font-size:16px;
+/* 手動快捷 */
+.quickRow{
+  margin-top:10px;
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:10px;
 }
-.dialogActions{display:flex;gap:10px}
-.dialogActions .btn{flex:1}
-.error{color:#fca5a5;margin-top:8px;min-height:18px;font-size:13px}
 
-.quickRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.list{ list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+.list li{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+}
+
+/* dialog */
+.dialog{ border:0; border-radius:14px; padding:0; width:min(92vw, 460px); }
+.dialogBody{ padding:14px; background:var(--panel); color:var(--text); }
+.dialogTitle{ font-weight:900; margin-bottom:6px; }
+.dialogSub{ color:var(--muted); margin-bottom:12px; word-break:break-all; }
+
+.quickQtyRow{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.dialogActions{ display:flex; gap:10px; margin-top:10px; }
+.dialogActions .btn{ flex:1; }
+.error{ color:#fca5a5; margin-top:8px; min-height:18px; font-size:13px; }
