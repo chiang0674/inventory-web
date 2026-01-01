@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventory-web-v10";
+const CACHE_NAME = "inventory-web-v8";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
