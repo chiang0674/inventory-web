@@ -1,5 +1,5 @@
-// ===== App Version =====
-const APP_VERSION = "v0.8.1"; // 想改版號就改這裡
+// ===== App Version (顯示在標題) =====
+const APP_VERSION = "v0.9.0";
 document.getElementById("appVersion").textContent = APP_VERSION;
 
 // ===== Storage =====
@@ -12,15 +12,13 @@ function loadInventory() {
     if (!raw) return {};
     const obj = JSON.parse(raw);
     return obj && typeof obj === "object" ? obj : {};
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 function saveInventory() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
 }
 
-// ===== UI refs =====
+// ===== UI =====
 const video = document.getElementById("video");
 const scanStatus = document.getElementById("scanStatus");
 const scanBoxEl = document.getElementById("scanBox");
@@ -45,7 +43,6 @@ const dlgCode = document.getElementById("dlgCode");
 const qtyInput = document.getElementById("qtyInput");
 const dlgOk = document.getElementById("dlgOk");
 const dlgCancel = document.getElementById("dlgCancel");
-const dlgErr = document.getElementById("dlgErr");
 
 const btnQ1 = document.getElementById("btnQ1");
 const btnQ3 = document.getElementById("btnQ3");
@@ -59,20 +56,16 @@ let stream = null;
 let scanning = false;
 let handling = false;
 
-// Decoder
 let detector = null;      // BarcodeDetector
 let ZXing = null;         // fallback
 let zxingLoaded = false;
 let zxingReader = null;
 
-// ROI canvas
 const roiCanvas = document.createElement("canvas");
 const roiCtx = roiCanvas.getContext("2d", { willReadFrequently: true });
 
 // ROI zoom factor
 const ROI_SCALE = 1.5;
-
-// scan speed
 const LOOP_DELAY_MS = isIOS ? 220 : 140;
 
 render();
@@ -80,7 +73,6 @@ setStatus("尚未開始掃描");
 
 // ===== Helpers =====
 function setStatus(msg) { scanStatus.textContent = msg; }
-
 function render() {
   list.innerHTML = "";
   const keys = Object.keys(inventory).sort();
@@ -91,46 +83,35 @@ function render() {
     list.appendChild(li);
   }
 }
-
 function addQty(code, qty) {
   inventory[code] = (inventory[code] || 0) + qty;
   saveInventory();
   render();
 }
-
 function isEan13(v) { return /^[0-9]{13}$/.test(v); }
-
-function csvEscape(s) {
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function csvEscape(s){
   const needs = /[",\n\r]/.test(s);
   if (!needs) return s;
-  return `"${s.replace(/"/g, '""')}"`;
+  return `"${s.replace(/"/g,'""')}"`;
 }
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ===== Dialog =====
 let currentResolveQty = null;
 
 async function promptQty(code) {
-  dlgErr.textContent = "";
   dlgCode.textContent = `條碼：${code}`;
   qtyInput.value = "";
   qtyDialog.showModal();
   qtyInput.focus();
   return new Promise((resolve) => { currentResolveQty = resolve; });
 }
-
-function resolveQty(valueOrNull) {
-  if (typeof currentResolveQty === "function") {
-    const r = currentResolveQty;
-    currentResolveQty = null;
-    qtyDialog.close();
-    r(valueOrNull);
-  } else {
-    qtyDialog.close();
-  }
+function resolveQty(v){
+  const r = currentResolveQty;
+  currentResolveQty = null;
+  qtyDialog.close();
+  r?.(v);
 }
-
 function validateAndResolveFromInput() {
   const raw = (qtyInput.value || "").trim();
   const v = parseInt(raw, 10);
@@ -143,17 +124,17 @@ function validateAndResolveFromInput() {
   resolveQty(v);
 }
 
-dlgOk.addEventListener("click", (e) => { e.preventDefault(); validateAndResolveFromInput(); });
-dlgCancel.addEventListener("click", (e) => { e.preventDefault(); resolveQty(null); });
+dlgOk.addEventListener("click", (e)=>{ e.preventDefault(); validateAndResolveFromInput(); });
+dlgCancel.addEventListener("click", (e)=>{ e.preventDefault(); resolveQty(null); });
 
-btnQ1.addEventListener("click", () => resolveQty(1));
-btnQ3.addEventListener("click", () => resolveQty(3));
-btnQ5.addEventListener("click", () => resolveQty(5));
+btnQ1.addEventListener("click", ()=> resolveQty(1));
+btnQ3.addEventListener("click", ()=> resolveQty(3));
+btnQ5.addEventListener("click", ()=> resolveQty(5));
 
-btnManualJump.addEventListener("click", () => {
+btnManualJump.addEventListener("click", ()=>{
   resolveQty(null);
-  setTimeout(() => {
-    manualPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(()=>{
+    manualPanel.scrollIntoView({behavior:"smooth", block:"start"});
     manualBarcode.focus();
   }, 50);
 });
@@ -175,12 +156,11 @@ async function startCamera() {
   video.srcObject = stream;
   video.muted = true;
 
-  // iOS: 必須等待 play + metadata 才有 videoWidth
   await video.play();
   await waitVideoReady();
 }
 
-function stopCamera() {
+function stopCamera(){
   if (!stream) return;
   stream.getTracks().forEach(t => t.stop());
   stream = null;
@@ -189,19 +169,17 @@ function stopCamera() {
 
 function waitVideoReady() {
   return new Promise((resolve) => {
-    const maxMs = 3000;
     const start = Date.now();
-
     const tick = () => {
       if (video.videoWidth > 0 && video.videoHeight > 0) return resolve();
-      if (Date.now() - start > maxMs) return resolve(); // 放行，但後面 loop 仍會等 videoWidth
+      if (Date.now() - start > 3000) return resolve();
       requestAnimationFrame(tick);
     };
     tick();
   });
 }
 
-// ===== Decoder init =====
+// ===== Decoder =====
 async function initDecoder() {
   detector = null;
   zxingReader = null;
@@ -228,31 +206,27 @@ async function initDecoder() {
   zxingReader.setHints(hints);
 }
 
-async function ensureZXing() {
+async function ensureZXing(){
   if (zxingLoaded) return;
   await loadScript("https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js");
   ZXing = window.ZXing;
   zxingLoaded = true;
 }
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src=src; s.onload=resolve; s.onerror=reject;
     document.head.appendChild(s);
   });
 }
 
-// ===== ROI mapping =====
+// ===== ROI =====
 function getRoiRectInVideoPixels() {
   const vRect = video.getBoundingClientRect();
   const bRect = scanBoxEl.getBoundingClientRect();
 
-  // 防呆：避免 0 導致 NaN
-  if (vRect.width <= 0 || vRect.height <= 0) {
-    return { sx: 0, sy: 0, sw: Math.max(1, video.videoWidth), sh: Math.max(1, video.videoHeight) };
+  if (vRect.width <= 0 || vRect.height <= 0 || video.videoWidth <= 0 || video.videoHeight <= 0) {
+    return { sx: 0, sy: 0, sw: 0, sh: 0 };
   }
 
   const rx = (bRect.left - vRect.left) / vRect.width;
@@ -260,22 +234,22 @@ function getRoiRectInVideoPixels() {
   const rw = bRect.width / vRect.width;
   const rh = bRect.height/ vRect.height;
 
-  const vx = Math.max(0, Math.floor(rx * video.videoWidth));
-  const vy = Math.max(0, Math.floor(ry * video.videoHeight));
-  const vw = Math.max(1, Math.floor(rw * video.videoWidth));
-  const vh = Math.max(1, Math.floor(rh * video.videoHeight));
+  const sx = Math.max(0, Math.floor(rx * video.videoWidth));
+  const sy = Math.max(0, Math.floor(ry * video.videoHeight));
+  const sw = Math.max(1, Math.floor(rw * video.videoWidth));
+  const sh = Math.max(1, Math.floor(rh * video.videoHeight));
 
-  const sx = Math.min(vx, video.videoWidth - 1);
-  const sy = Math.min(vy, video.videoHeight - 1);
-  const sw = Math.min(vw, video.videoWidth - sx);
-  const sh = Math.min(vh, video.videoHeight - sy);
-
-  return { sx, sy, sw, sh };
+  return {
+    sx: Math.min(sx, video.videoWidth - 1),
+    sy: Math.min(sy, video.videoHeight - 1),
+    sw: Math.min(sw, video.videoWidth - sx),
+    sh: Math.min(sh, video.videoHeight - sy)
+  };
 }
 
-// ===== Detect ROI (scaled) =====
 async function detectFromROI() {
   const { sx, sy, sw, sh } = getRoiRectInVideoPixels();
+  if (sw <= 0 || sh <= 0) return { r: null, debug: "ROI not ready" };
 
   const dw = Math.max(1, Math.floor(sw * ROI_SCALE));
   const dh = Math.max(1, Math.floor(sh * ROI_SCALE));
@@ -286,13 +260,15 @@ async function detectFromROI() {
   roiCtx.imageSmoothingEnabled = true;
   roiCtx.drawImage(video, sx, sy, sw, sh, 0, 0, dw, dh);
 
+  const debug = `ROI: ${sw}x${sh} -> ${dw}x${dh} (x${ROI_SCALE})`;
+
   if (detector) {
     const codes = await detector.detect(roiCanvas);
     if (codes && codes.length > 0) {
       const c = codes[0];
-      return { value: (c.rawValue || "").trim(), format: String(c.format || "").toLowerCase() };
+      return { r: { value: (c.rawValue || "").trim(), format: String(c.format || "").toLowerCase() }, debug };
     }
-    return null;
+    return { r: null, debug };
   }
 
   const imageData = roiCtx.getImageData(0, 0, dw, dh);
@@ -304,10 +280,9 @@ async function detectFromROI() {
 
     const value = (result.getText() || "").trim();
     const format = String(result.getBarcodeFormat() || "").toLowerCase();
-    if (!value) return null;
-    return { value, format };
+    return { r: value ? { value, format } : null, debug };
   } catch {
-    return null;
+    return { r: null, debug };
   }
 }
 
@@ -317,14 +292,14 @@ async function scanLoop() {
     if (handling) { await sleep(LOOP_DELAY_MS); continue; }
     if (!video.videoWidth) { await sleep(LOOP_DELAY_MS); continue; }
 
-    const r = await detectFromROI();
-    if (r && r.value) await handleDetected(r.value, r.format);
+    const { r, debug } = await detectFromROI();
+    setStatus(`掃描中… ${debug}`);
 
+    if (r && r.value) await handleDetected(r.value, r.format);
     await sleep(LOOP_DELAY_MS);
   }
 }
 
-// ===== Workflow =====
 async function handleDetected(value, formatLower) {
   const code = String(value).trim();
   if (!code) return;
@@ -333,7 +308,7 @@ async function handleDetected(value, formatLower) {
   if (looksEAN && !isEan13(code)) return;
 
   handling = true;
-  setStatus(`已掃到：${code}，請輸入數量`);
+  setStatus(`已掃到：${code}（輸入數量）`);
 
   const qty = await promptQty(code);
   if (qty != null) {
@@ -360,24 +335,22 @@ btnStartScan.onclick = async () => {
     await startCamera();
     await initDecoder();
 
-    setStatus(`掃描中…只掃框內（ROI x${ROI_SCALE}）`);
+    setStatus(`掃描中… ROI x${ROI_SCALE}`);
     scanLoop();
-  } catch (e) {
+  } catch {
     scanning = false;
     btnStartScan.disabled = false;
     btnStopScan.disabled = true;
-    setStatus("相機啟動失敗：請確認 Safari 相機權限 / 不要用 LINE/FB 內建瀏覽器");
-    alert("相機啟動失敗：請確認 Safari 相機權限，並用 Safari 開啟（不要用內建瀏覽器）。");
+    setStatus("相機啟動失敗：請用 Safari 並允許相機權限");
+    alert("相機啟動失敗：請用 Safari 開啟並允許相機權限（不要用 LINE/FB 內建瀏覽器）。");
   }
 };
 
 btnStopScan.onclick = () => {
   scanning = false;
   handling = false;
-
   btnStartScan.disabled = false;
   btnStopScan.disabled = true;
-
   setStatus("已停止掃描");
   stopCamera();
 };
@@ -392,11 +365,7 @@ btnClear.onclick = () => {
 
 btnExport.onclick = () => {
   const keys = Object.keys(inventory).sort();
-  if (keys.length === 0) {
-    alert("目前沒有資料可匯出");
-    return;
-  }
-
+  if (keys.length === 0) { alert("目前沒有資料可匯出"); return; }
   const lines = ["barcode,qty"];
   for (const k of keys) lines.push(`${csvEscape(k)},${inventory[k]}`);
   const csv = lines.join("\n");
@@ -408,7 +377,7 @@ btnExport.onclick = () => {
   a.click();
 };
 
-// Manual input fallback
+// Manual input
 btnAdd1.onclick = () => { const c = manualBarcode.value.trim(); if (c) addQty(c, 1); };
 btnAdd5.onclick = () => { const c = manualBarcode.value.trim(); if (c) addQty(c, 5); };
 btnAdd10.onclick = () => { const c = manualBarcode.value.trim(); if (c) addQty(c, 10); };
@@ -419,26 +388,11 @@ btnAddCustom.onclick = async () => {
   if (q != null) addQty(c, q);
 };
 
-// ===== Service Worker: force update =====
+// ===== Service Worker: register (sw 不再快取檔案；避免卡舊版) =====
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("./sw.js");
-      if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
-
-      reg.addEventListener("updatefound", () => {
-        const w = reg.installing;
-        if (!w) return;
-        w.addEventListener("statechange", () => {
-          if (w.state === "installed" && navigator.serviceWorker.controller) {
-            w.postMessage({ type: "SKIP_WAITING" });
-          }
-        });
-      });
-
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        window.location.reload();
-      });
+      await navigator.serviceWorker.register("./sw.js");
     } catch {}
   });
 }
