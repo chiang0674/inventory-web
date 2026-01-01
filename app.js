@@ -205,18 +205,42 @@ async function detectNative() {
 }
 
 async function detectZXing() {
+  // 1) 降低取樣解析度（iPhone 很重要）
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return null;
+
+  // 2) 只取畫面中央區域（ROI）提升成功率與速度
+  //    取中央 70% 寬、35% 高（可依條碼大小微調）
+  const roiW = Math.floor(vw * 0.70);
+  const roiH = Math.floor(vh * 0.35);
+  const sx = Math.floor((vw - roiW) / 2);
+  const sy = Math.floor((vh - roiH) / 2);
+
+  // 3) 把 ROI 縮放到較小尺寸解碼（更快）
+  //    目標寬 640（iPhone 上很夠用）
+  const targetW = 640;
+  const scale = targetW / roiW;
+  const targetH = Math.max(240, Math.floor(roiH * scale));
+
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvas.width = targetW;
+  canvas.height = targetH;
+
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, sx, sy, roiW, roiH, 0, 0, targetW, targetH);
+
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
+  // 4) ZXing hints：只解 EAN-13 + CODE128
   const hints = new Map();
   hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
     ZXing.BarcodeFormat.EAN_13,
     ZXing.BarcodeFormat.CODE_128
   ]);
+
+  // 可選：告訴 ZXing 這是「純條碼」場景（有時有幫助）
+  // hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
   const reader = new ZXing.MultiFormatReader();
   reader.setHints(hints);
@@ -224,13 +248,14 @@ async function detectZXing() {
   try {
     const res = reader.decodeBitmap(imageData);
     const text = (res.getText() || "").trim();
-    const format = String(res.getBarcodeFormat()); // "EAN_13" / "CODE_128"
+    const format = String(res.getBarcodeFormat());
     if (!text) return null;
     return { value: text, format };
   } catch {
     return null;
   }
 }
+
 
 // ====== 你要的流程：掃到 -> 跳輸入 -> 回掃描 ======
 function isEan13(v) {
@@ -354,3 +379,4 @@ if ("serviceWorker" in navigator) {
     } catch {}
   });
 }
+
