@@ -1,5 +1,7 @@
-// ===================== Storage =====================
-const STORAGE_KEY = "inventory_ean13_v1";
+// ===== Storage =====
+const STORAGE_KEY = "inventory_v1";
+let inventory = loadInventory();
+
 function loadInventory() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -10,128 +12,173 @@ function loadInventory() {
     return {};
   }
 }
-function saveInventory(inv) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(inv));
+function saveInventory() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
 }
 
-// ===================== UI refs =====================
+// ===== UI refs =====
 const video = document.getElementById("video");
 const scanStatus = document.getElementById("scanStatus");
+const scanBoxEl = document.getElementById("scanBox");
 
-const btnStart = document.getElementById("btnStartScan");
-const btnStop = document.getElementById("btnStopScan");
+const btnStartScan = document.getElementById("btnStartScan");
+const btnStopScan = document.getElementById("btnStopScan");
 const btnExport = document.getElementById("btnExport");
 const btnClear = document.getElementById("btnClear");
 
-const listEl = document.getElementById("list");
-const emptyState = document.getElementById("emptyState");
-const countBadge = document.getElementById("countBadge");
+const list = document.getElementById("list");
+const count = document.getElementById("count");
 
+const manualPanel = document.getElementById("manualPanel");
 const manualBarcode = document.getElementById("manualBarcode");
 const btnAdd1 = document.getElementById("btnAdd1");
 const btnAdd5 = document.getElementById("btnAdd5");
+const btnAdd10 = document.getElementById("btnAdd10");
 const btnAddCustom = document.getElementById("btnAddCustom");
 
 const qtyDialog = document.getElementById("qtyDialog");
-const dlgBarcode = document.getElementById("dlgBarcode");
+const dlgCode = document.getElementById("dlgCode");
 const qtyInput = document.getElementById("qtyInput");
-const dlgError = document.getElementById("dlgError");
+const dlgOk = document.getElementById("dlgOk");
+const dlgCancel = document.getElementById("dlgCancel");
+const dlgErr = document.getElementById("dlgErr");
 
-// ===================== State =====================
+// quick qty buttons
+const btnQ1 = document.getElementById("btnQ1");
+const btnQ3 = document.getElementById("btnQ3");
+const btnQ5 = document.getElementById("btnQ5");
+const btnManualJump = document.getElementById("btnManualJump");
+
+// ===== State =====
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-let inventory = loadInventory();
-
+let stream = null;
 let scanning = false;
 let handling = false;
 
-let stream = null;
-let nativeDetector = null;
-
+// Decoder
+let detector = null;      // BarcodeDetector
+let ZXing = null;         // fallback
 let zxingLoaded = false;
-let ZXing = null;
 let zxingReader = null;
-let zxingControls = null;
 
-// ROI (relative to video): left 12%, top 42%, width 76%, height 14%
-const ROI = { x: 0.12, y: 0.42, w: 0.76, h: 0.14 };
+// ROI canvas
+const roiCanvas = document.createElement("canvas");
+const roiCtx = roiCanvas.getContext("2d", { willReadFrequently: true });
+
+// ROI zoom factor
+const ROI_SCALE = 1.5;
 
 render();
 setStatus("尚未開始掃描");
 
-// ===================== Helpers =====================
+// ===== Helpers =====
 function setStatus(msg) {
   scanStatus.textContent = msg;
 }
-function isEan13(code) {
-  return /^[0-9]{13}$/.test(code);
+
+function render() {
+  list.innerHTML = "";
+  const keys = Object.keys(inventory).sort();
+  count.textContent = String(keys.length);
+  for (const code of keys) {
+    const li = document.createElement("li");
+    li.textContent = `${code} : ${inventory[code]}`;
+    list.appendChild(li);
+  }
 }
+
 function addQty(code, qty) {
-  inventory[code] = (inventory[code] ?? 0) + qty;
-  saveInventory(inventory);
+  inventory[code] = (inventory[code] || 0) + qty;
+  saveInventory();
   render();
 }
-function render() {
-  const keys = Object.keys(inventory).sort();
-  countBadge.textContent = String(keys.length);
 
-  listEl.innerHTML = "";
-  if (keys.length === 0) {
-    emptyState.style.display = "block";
-    return;
-  }
-  emptyState.style.display = "none";
-
-  for (const code of keys) {
-    const qty = inventory[code] ?? 0;
-    const li = document.createElement("li");
-    li.className = "item";
-    li.innerHTML = `
-      <div class="code">${escapeHtml(code)}</div>
-      <div class="qty">${qty}</div>
-      <div class="sub">barcode,qty</div>
-    `;
-    listEl.appendChild(li);
-  }
-}
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, (c) => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
-  }[c]));
+function isEan13(v) {
+  return /^[0-9]{13}$/.test(v);
 }
 
-// ===================== Dialog flow =====================
+function csvEscape(s) {
+  const needs = /[",\n\r]/.test(s);
+  if (!needs) return s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ===== Dialog: scan -> qty -> back to scan =====
+let currentResolveQty = null;
+
 async function promptQty(code) {
-  dlgError.textContent = "";
-  dlgBarcode.textContent = `條碼：${code}`;
+  dlgErr.textContent = "";
+  dlgCode.textContent = `條碼：${code}`;
   qtyInput.value = "";
   qtyDialog.showModal();
   qtyInput.focus();
 
-  const result = await new Promise((resolve) => {
-    const handler = () => resolve(qtyDialog.returnValue);
-    qtyDialog.addEventListener("close", handler, { once: true });
+  return new Promise((resolve) => {
+    currentResolveQty = resolve;
   });
-
-  if (result !== "ok") return null;
-
-  const v = parseInt(qtyInput.value.trim(), 10);
-  if (!Number.isFinite(v) || v <= 0) {
-    dlgError.textContent = "請輸入大於 0 的整數";
-    return await promptQty(code);
-  }
-  return v;
 }
 
-// ===================== Camera =====================
+function resolveQty(valueOrNull) {
+  if (typeof currentResolveQty === "function") {
+    const r = currentResolveQty;
+    currentResolveQty = null;
+    qtyDialog.close();
+    r(valueOrNull);
+  } else {
+    qtyDialog.close();
+  }
+}
+
+function validateAndResolveFromInput() {
+  const raw = (qtyInput.value || "").trim();
+  const v = parseInt(raw, 10);
+  if (!raw || !Number.isFinite(v) || v <= 0) {
+    alert("請輸入大於 0 的整數");
+    qtyInput.focus();
+    qtyInput.select?.();
+    return;
+  }
+  resolveQty(v);
+}
+
+// Dialog button handlers
+dlgOk.addEventListener("click", (e) => {
+  e.preventDefault();
+  validateAndResolveFromInput();
+});
+dlgCancel.addEventListener("click", (e) => {
+  e.preventDefault();
+  resolveQty(null);
+});
+
+// Quick qty: 1 / 3 / 5 (one-tap confirm)
+btnQ1.addEventListener("click", () => resolveQty(1));
+btnQ3.addEventListener("click", () => resolveQty(3));
+btnQ5.addEventListener("click", () => resolveQty(5));
+
+// Manual jump button (close dialog -> scroll to manual input)
+btnManualJump.addEventListener("click", () => {
+  resolveQty(null);
+  setTimeout(() => {
+    manualPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    manualBarcode.focus();
+  }, 50);
+});
+
+// ===== Camera =====
 async function startCamera() {
   if (stream) return;
 
   const constraints = {
     video: {
       facingMode: { ideal: "environment" },
-      width: { ideal: isIOS ? 1280 : 1920 },
-      height: { ideal: isIOS ? 720 : 1080 }
+      width:  { ideal: isIOS ? 1280 : 1920 },
+      height: { ideal: isIOS ? 720  : 1080 }
     },
     audio: false
   };
@@ -141,6 +188,7 @@ async function startCamera() {
   video.muted = true;
   await video.play();
 }
+
 function stopCamera() {
   if (!stream) return;
   stream.getTracks().forEach(t => t.stop());
@@ -148,53 +196,39 @@ function stopCamera() {
   video.srcObject = null;
 }
 
-// ===================== Native detector =====================
-async function initNativeDetector() {
-  if (!("BarcodeDetector" in window)) return false;
-  try {
-    const formats = await window.BarcodeDetector.getSupportedFormats();
-    if (!formats.includes("ean_13")) return false;
-    nativeDetector = new window.BarcodeDetector({ formats: ["ean_13"] });
-    return true;
-  } catch {
-    return false;
+// ===== Decoder init =====
+async function initDecoder() {
+  // Prefer native BarcodeDetector
+  if ("BarcodeDetector" in window) {
+    try {
+      const formats = await window.BarcodeDetector.getSupportedFormats();
+      const want = ["ean_13", "code_128"];
+      const use = want.filter(f => formats.includes(f));
+      if (use.length > 0) {
+        detector = new window.BarcodeDetector({ formats: use });
+        return;
+      }
+    } catch {}
   }
+
+  // Fallback: ZXing
+  await ensureZXing();
+  zxingReader = new ZXing.MultiFormatReader();
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.EAN_13,
+    ZXing.BarcodeFormat.CODE_128
+  ]);
+  zxingReader.setHints(hints);
 }
 
-function getRoiCanvasFromVideo() {
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-
-  const sx = Math.floor(vw * ROI.x);
-  const sy = Math.floor(vh * ROI.y);
-  const sw = Math.floor(vw * ROI.w);
-  const sh = Math.floor(vh * ROI.h);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = sw;
-  canvas.height = sh;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
-  return canvas;
-}
-
-async function detectNativeEan13FromROI() {
-  // Native BarcodeDetector supports ImageBitmap / Canvas etc.
-  const canvas = getRoiCanvasFromVideo();
-  const codes = await nativeDetector.detect(canvas);
-  if (!codes || codes.length === 0) return null;
-  const v = (codes[0].rawValue ?? "").trim();
-  if (!isEan13(v)) return null;
-  return v;
-}
-
-// ===================== ZXing fallback (iOS friendly) =====================
 async function ensureZXing() {
   if (zxingLoaded) return;
   await loadScript("https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js");
   ZXing = window.ZXing;
   zxingLoaded = true;
 }
+
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
@@ -205,82 +239,100 @@ function loadScript(src) {
   });
 }
 
-async function startZXingDecode() {
-  const hints = new Map();
-  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.EAN_13]);
-  zxingReader = new ZXing.BrowserMultiFormatReader(hints, LOOP_DELAY_MS);
+// ===== ROI mapping: only scan inside box =====
+function getRoiRectInVideoPixels() {
+  const vRect = video.getBoundingClientRect();
+  const bRect = scanBoxEl.getBoundingClientRect();
 
-  // ZXing 直接從相機解碼，但我們只接受 ROI 內的結果：
-  // 作法：用 decodeFromConstraints 綁 video；回呼內再以 ROI canvas 做二次過濾（降低誤判）
-  const constraints = {
-    video: {
-      facingMode: { ideal: "environment" },
-      width: { ideal: isIOS ? 1280 : 1920 },
-      height: { ideal: isIOS ? 720 : 1080 }
-    },
-    audio: false
-  };
+  const rx = (bRect.left - vRect.left) / vRect.width;
+  const ry = (bRect.top  - vRect.top)  / vRect.height;
+  const rw = bRect.width / vRect.width;
+  const rh = bRect.height/ vRect.height;
 
-  zxingControls = await zxingReader.decodeFromConstraints(
-    constraints,
-    video,
-    async (result, err) => {
-      if (!scanning || handling) return;
+  const vx = Math.max(0, Math.floor(rx * video.videoWidth));
+  const vy = Math.max(0, Math.floor(ry * video.videoHeight));
+  const vw = Math.max(1, Math.floor(rw * video.videoWidth));
+  const vh = Math.max(1, Math.floor(rh * video.videoHeight));
 
-      if (result) {
-        const text = (result.getText() ?? "").trim();
-        // 只接受 EAN-13
-        if (!isEan13(text)) return;
+  const sx = Math.min(vx, video.videoWidth - 1);
+  const sy = Math.min(vy, video.videoHeight - 1);
+  const sw = Math.min(vw, video.videoWidth - sx);
+  const sh = Math.min(vh, video.videoHeight - sy);
 
-        // 進一步降低誤判：只在 ROI 取樣時才觸發
-        //（若條碼不在框內，通常 ROI 取樣不會穩定讀到）
-        await handleDetected(text);
-      }
+  return { sx, sy, sw, sh };
+}
+
+// ROI detect with 1.5x upscaling
+async function detectFromROI() {
+  const { sx, sy, sw, sh } = getRoiRectInVideoPixels();
+
+  const dw = Math.max(1, Math.floor(sw * ROI_SCALE));
+  const dh = Math.max(1, Math.floor(sh * ROI_SCALE));
+
+  roiCanvas.width = dw;
+  roiCanvas.height = dh;
+
+  // Draw ROI scaled up to canvas
+  roiCtx.imageSmoothingEnabled = true;
+  roiCtx.drawImage(video, sx, sy, sw, sh, 0, 0, dw, dh);
+
+  // Native detector on canvas
+  if (detector) {
+    const codes = await detector.detect(roiCanvas);
+    if (codes && codes.length > 0) {
+      const c = codes[0];
+      return {
+        value: (c.rawValue || "").trim(),
+        format: String(c.format || "").toLowerCase()
+      };
     }
-  );
+    return null;
+  }
+
+  // ZXing decode on scaled ROI imageData
+  const imageData = roiCtx.getImageData(0, 0, dw, dh);
+  try {
+    const luminance = new ZXing.RGBLuminanceSource(imageData.data, dw, dh);
+    const binarizer = new ZXing.HybridBinarizer(luminance);
+    const bitmap = new ZXing.BinaryBitmap(binarizer);
+
+    const result = zxingReader.decode(bitmap);
+    const value = (result.getText() || "").trim();
+    const format = String(result.getBarcodeFormat() || "").toLowerCase();
+    if (!value) return null;
+    return { value, format };
+  } catch {
+    return null;
+  }
 }
 
-function stopZXingDecode() {
-  try { zxingControls?.stop(); } catch {}
-  zxingControls = null;
-  zxingReader = null;
-}
-
-// ===================== Scan loop =====================
+// ===== Scan loop =====
 const LOOP_DELAY_MS = isIOS ? 200 : 120;
 
-async function scanLoopNative() {
-  while (scanning && nativeDetector) {
+async function scanLoop() {
+  while (scanning) {
     if (handling) { await sleep(LOOP_DELAY_MS); continue; }
     if (!video.videoWidth) { await sleep(LOOP_DELAY_MS); continue; }
 
-    try {
-      const code = await detectNativeEan13FromROI();
-      if (code) await handleDetected(code);
-    } catch {}
+    const r = await detectFromROI();
+    if (r && r.value) await handleDetected(r.value, r.format);
 
     await sleep(LOOP_DELAY_MS);
   }
 }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ===================== Your workflow: scan -> dialog -> back to scan =====================
-async function handleDetected(code) {
-  if (handling) return;
-  if (!isEan13(code)) return;
+// ===== Workflow: scan -> dialog -> back to scan =====
+async function handleDetected(value, formatLower) {
+  const code = String(value).trim();
+  if (!code) return;
+
+  const looksEAN = String(formatLower || "").includes("ean");
+  if (looksEAN && !isEan13(code)) return;
 
   handling = true;
+  setStatus(`已掃到：${code}，請輸入數量`);
 
-  // ZXing 模式：暫停解碼，避免連續觸發
-  if (zxingControls) {
-    try { zxingControls.stop(); } catch {}
-    zxingControls = null;
-    zxingReader = null;
-  }
-
-  setStatus(`已掃到：${code}（輸入數量）`);
   const qty = await promptQty(code);
-
   if (qty != null) {
     addQty(code, qty);
     setStatus(`已累加：${code} +${qty}（回到掃描）`);
@@ -289,58 +341,40 @@ async function handleDetected(code) {
   }
 
   handling = false;
-
-  // 回到掃描畫面（恢復）
-  if (scanning && !nativeDetector) {
-    await startZXingDecode();
-  }
 }
 
-// ===================== Buttons =====================
-btnStart.onclick = async () => {
+// ===== Buttons =====
+btnStartScan.onclick = async () => {
   if (scanning) return;
   scanning = true;
   handling = false;
 
-  btnStart.disabled = true;
-  btnStop.disabled = false;
+  btnStartScan.disabled = true;
+  btnStopScan.disabled = false;
 
-  setStatus("啟動相機…請允許權限");
+  setStatus("啟動中…請允許相機");
+  await startCamera();
+  await initDecoder();
 
-  // 先嘗試 native（可用就走 ROI + native）
-  const canNative = await initNativeDetector();
-  if (canNative) {
-    await startCamera();
-    setStatus("掃描中…請把 EAN-13 放在小框內");
-    scanLoopNative();
-    return;
-  }
-
-  // fallback ZXing
-  await ensureZXing();
-  nativeDetector = null;
-  setStatus("掃描中…請把 EAN-13 放在小框內");
-  await startZXingDecode();
+  setStatus(`掃描中…只掃框內（ROI x${ROI_SCALE}）`);
+  scanLoop();
 };
 
-btnStop.onclick = () => {
+btnStopScan.onclick = () => {
   scanning = false;
   handling = false;
 
-  btnStart.disabled = false;
-  btnStop.disabled = true;
+  btnStartScan.disabled = false;
+  btnStopScan.disabled = true;
 
   setStatus("已停止掃描");
-
-  stopZXingDecode();
   stopCamera();
-  nativeDetector = null;
 };
 
 btnClear.onclick = () => {
-  if (!confirm("確定要清空所有盤點資料嗎？")) return;
+  if (!confirm("確定清空？")) return;
   inventory = {};
-  saveInventory(inventory);
+  saveInventory();
   render();
   setStatus("已清空");
 };
@@ -353,7 +387,7 @@ btnExport.onclick = () => {
   }
 
   const lines = ["barcode,qty"];
-  for (const k of keys) lines.push(`${k},${inventory[k] ?? 0}`);
+  for (const k of keys) lines.push(`${csvEscape(k)},${inventory[k]}`);
   const csv = lines.join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -363,33 +397,18 @@ btnExport.onclick = () => {
   a.click();
 };
 
-// 手動輸入（保底）：只接受 13 位數字
-function getManualEan13OrAlert() {
-  const v = (manualBarcode.value || "").trim();
-  if (!isEan13(v)) {
-    alert("請輸入 13 位數字的 EAN-13");
-    return null;
-  }
-  return v;
-}
-btnAdd1.onclick = () => {
-  const c = getManualEan13OrAlert();
-  if (!c) return;
-  addQty(c, 1);
-};
-btnAdd5.onclick = () => {
-  const c = getManualEan13OrAlert();
-  if (!c) return;
-  addQty(c, 5);
-};
+// Manual input fallback
+btnAdd1.onclick = () => { const c = manualBarcode.value.trim(); if (c) addQty(c, 1); };
+btnAdd5.onclick = () => { const c = manualBarcode.value.trim(); if (c) addQty(c, 5); };
+btnAdd10.onclick = () => { const c = manualBarcode.value.trim(); if (c) addQty(c, 10); };
 btnAddCustom.onclick = async () => {
-  const c = getManualEan13OrAlert();
+  const c = manualBarcode.value.trim();
   if (!c) return;
   const q = await promptQty(c);
   if (q != null) addQty(c, q);
 };
 
-// ===================== Service Worker: force update =====================
+// ===== Service Worker: force update =====
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
