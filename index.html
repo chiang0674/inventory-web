@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>盤點系統</title>
+
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
   <meta name="theme-color" content="#111827" />
@@ -11,58 +12,80 @@
 <body>
 
 <header class="topbar">
-  <h1>盤點系統</h1>
+  <div class="title">盤點系統</div>
   <div class="actions">
-    <button id="btnExport">匯出 CSV</button>
-    <button id="btnClear">清空</button>
+    <button id="btnExport" class="btn secondary">匯出 CSV</button>
+    <button id="btnClear" class="btn danger">清空</button>
   </div>
 </header>
 
 <main class="container">
-
-  <!-- 1) 掃描畫面 -->
   <section class="panel">
     <div class="row">
-      <button id="btnStartScan">開始掃描</button>
-      <button id="btnStopScan" disabled>停止掃描</button>
+      <button id="btnStartScan" class="btn primary">開始掃描</button>
+      <button id="btnStopScan" class="btn secondary" disabled>停止掃描</button>
     </div>
-    <p class="hint" id="hintText">支援：EAN-13 / Code128（掃到後輸入數量，確定後回到掃描）</p>
+
+    <div class="hint">
+      只支援 EAN-13。請將條碼置於中間小框內。
+    </div>
 
     <div class="scanner">
       <video id="video" playsinline muted></video>
-      <div id="scanStatus">尚未開始掃描</div>
-    </div>
-  </section>
 
-  <!-- 手動輸入保留（iOS 掃描不穩時可用） -->
-  <section class="panel">
-    <h2>手動輸入（累加）</h2>
-    <input id="manualBarcode" placeholder="輸入條碼">
-    <div class="quick">
-      <button id="btnAdd1">+1</button>
-      <button id="btnAdd5">+5</button>
-      <button id="btnAdd10">+10</button>
-      <button id="btnAddCustom">自訂</button>
+      <!-- 小掃描框（狹長） -->
+      <div class="roi" aria-hidden="true"></div>
+
+      <div id="scanStatus" class="scanStatus">尚未開始掃描</div>
     </div>
   </section>
 
   <section class="panel">
-    <h2>盤點清單</h2>
-    <div id="count">0</div>
-    <ul id="list"></ul>
+    <div class="panelHeader">
+      <div class="panelTitle">手動輸入（累加）</div>
+      <div class="badge subtle">EAN-13</div>
+    </div>
+
+    <label class="field">
+      <span>條碼（13 位數字）</span>
+      <input id="manualBarcode" inputmode="numeric" pattern="[0-9]*" placeholder="例如 4712345678901" />
+    </label>
+
+    <div class="quickRow">
+      <button id="btnAdd1" class="btn secondary">+1</button>
+      <button id="btnAdd5" class="btn secondary">+5</button>
+      <button id="btnAddCustom" class="btn primary">自訂數量</button>
+    </div>
   </section>
 
+  <section class="panel">
+    <div class="panelHeader">
+      <div class="panelTitle">盤點清單</div>
+      <div id="countBadge" class="badge">0</div>
+    </div>
+
+    <div id="emptyState" class="empty">尚無盤點資料</div>
+    <ul id="list" class="list"></ul>
+  </section>
 </main>
 
-<!-- 2) 掃完跳輸入對話框 -->
-<dialog id="qtyDialog">
-  <p id="dlgCode" style="margin:0 0 8px 0;font-weight:700;"></p>
-  <input id="qtyInput" type="number" inputmode="numeric" placeholder="輸入盤點數量（整數）" style="width:100%;padding:10px;">
-  <div style="margin-top:10px;display:flex;gap:10px;">
-    <button id="dlgCancel" style="flex:1;">取消</button>
-    <button id="dlgOk" style="flex:1;">確定</button>
-  </div>
-  <div id="dlgErr" style="margin-top:8px;color:#dc2626;min-height:18px;font-size:13px;"></div>
+<!-- 掃到後輸入數量 -->
+<dialog id="qtyDialog" class="dialog">
+  <form method="dialog" class="dialogBody">
+    <div class="dialogTitle">輸入盤點數量</div>
+    <div class="dialogSub" id="dlgBarcode"></div>
+
+    <label class="field">
+      <span>數量（整數）</span>
+      <input id="qtyInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="例如 1" />
+    </label>
+
+    <div class="dialogActions">
+      <button id="dlgCancel" class="btn secondary" value="cancel">取消</button>
+      <button id="dlgOk" class="btn primary" value="ok">確定</button>
+    </div>
+    <div id="dlgError" class="error"></div>
+  </form>
 </dialog>
 
 <script src="app.js"></script>
