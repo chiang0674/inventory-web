@@ -12,7 +12,9 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">盤點系統</div>
+  <div class="brand">
+    盤點系統 <span id="appVersion" class="ver"></span>
+  </div>
   <div class="actions">
     <button id="btnExport" class="btn secondary">匯出 CSV</button>
     <button id="btnClear" class="btn danger">清空</button>
@@ -20,7 +22,6 @@
 </header>
 
 <main class="container">
-  <!-- 掃描畫面 -->
   <section class="panel">
     <div class="row">
       <button id="btnStartScan" class="btn primary">開始掃描</button>
@@ -38,7 +39,6 @@
     </div>
   </section>
 
-  <!-- 手動輸入區（保底） -->
   <section class="panel" id="manualPanel">
     <div class="panelHeader">
       <div class="panelTitle">手動輸入（累加）</div>
@@ -67,7 +67,6 @@
   </section>
 </main>
 
-<!-- 數量輸入對話框（含快速按鈕 + 手動輸入按鈕） -->
 <dialog id="qtyDialog" class="dialog">
   <form method="dialog" class="dialogBody">
     <div class="dialogTitle">輸入盤點數量</div>
