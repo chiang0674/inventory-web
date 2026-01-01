@@ -1,9 +1,13 @@
-const CACHE_NAME = "inventory-web-v2";
+const CACHE_NAME = "inventory-web-v3";
 
-self.addEventListener("install", e => {
-  self.skipWaiting();
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener("activate", e => {
-  e.waitUntil(self.clients.claim());
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });
