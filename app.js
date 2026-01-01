@@ -169,7 +169,7 @@ function loadScript(src) {
 }
 
 // ====== Scan loop ======
-const LOOP_DELAY_MS = isIOS ? 200 : 120;
+const LOOP_DELAY_MS = isIOS ? 300 : 120;
 
 async function scanLoop() {
   while (scanning) {
@@ -379,4 +379,5 @@ if ("serviceWorker" in navigator) {
     } catch {}
   });
 }
+
 
