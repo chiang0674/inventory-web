@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>盤點系統</title>
+
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
   <meta name="theme-color" content="#111827" />
@@ -28,12 +29,12 @@
     </div>
 
     <div class="hint">
-      支援：EAN-13 / Code128（只掃框內；ROI 解碼放大 1.5 倍；掃到後輸入數量，確定後回到掃描）
+      支援：EAN-13 / Code128（只掃框內；ROI 解碼自動 x1.5 / x2 / x2.5；掃到震動回饋）
     </div>
 
     <div class="scanner">
       <video id="video" playsinline muted></video>
-      <div id="scanBox" class="scanBox" aria-hidden="true"></div>
+      <div id="scanBox" class="scanBox"></div>
       <div id="scanStatus" class="scanStatus">尚未開始掃描</div>
     </div>
   </section>
@@ -46,7 +47,7 @@
 
     <label class="field">
       <span>條碼</span>
-      <input id="manualBarcode" autocomplete="off" placeholder="輸入條碼">
+      <input id="manualBarcode" placeholder="輸入條碼">
     </label>
 
     <div class="quickRow">
@@ -72,20 +73,20 @@
     <div id="dlgCode" class="dialogSub"></div>
 
     <div class="quickQtyRow">
-      <button id="btnQ1" class="btn secondary" type="button">1</button>
-      <button id="btnQ3" class="btn secondary" type="button">3</button>
-      <button id="btnQ5" class="btn secondary" type="button">5</button>
-      <button id="btnManualJump" class="btn secondary" type="button">手動輸入</button>
+      <button id="btnQ1" type="button" class="btn secondary">1</button>
+      <button id="btnQ3" type="button" class="btn secondary">3</button>
+      <button id="btnQ5" type="button" class="btn secondary">5</button>
+      <button id="btnManualJump" type="button" class="btn secondary">手動輸入</button>
     </div>
 
     <label class="field">
-      <span>數量（整數）</span>
-      <input id="qtyInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="例如 1">
+      <span>數量</span>
+      <input id="qtyInput" inputmode="numeric" placeholder="例如 1">
     </label>
 
     <div class="dialogActions">
-      <button id="dlgCancel" class="btn secondary" value="cancel">取消</button>
-      <button id="dlgOk" class="btn primary" value="ok">確定</button>
+      <button id="dlgCancel" class="btn secondary">取消</button>
+      <button id="dlgOk" class="btn primary">確定</button>
     </div>
   </form>
 </dialog>
