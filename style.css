@@ -9,94 +9,83 @@
 }
 
 *{ box-sizing:border-box; }
-body{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",Arial,sans-serif; background:var(--bg); color:var(--text); }
+body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI"; background:var(--bg); color:var(--text); }
 
 .topbar{
-  position:sticky; top:0; z-index:50;
   padding:12px 14px;
-  background:rgba(17,24,39,.95);
-  backdrop-filter: blur(8px);
-  border-bottom:1px solid var(--border);
-  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  background:#111827;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
-.brand{ font-weight:900; letter-spacing:.5px; }
-.ver{ font-size:12px; color:rgba(255,255,255,.65); margin-left:6px; font-weight:800; }
+.brand{ font-weight:900; }
+.ver{ font-size:12px; opacity:.7; margin-left:6px; }
 
-.actions{ display:flex; gap:8px; }
 .container{ padding:14px; display:grid; gap:14px; }
 
-.panel{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; }
-
-.panelHeader{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
-.panelTitle{ font-weight:900; }
-.badge{ padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.10); font-weight:800; }
-
+.panel{ background:var(--panel); border-radius:14px; padding:14px; }
 .row{ display:flex; gap:10px; }
 
-.btn{ border:0; padding:12px 14px; border-radius:12px; font-weight:800; color:#fff; cursor:pointer; }
-.btn:disabled{ opacity:.5; cursor:not-allowed; }
-.btn.primary{ background:var(--primary); flex:1; }
-.btn.secondary{ background:rgba(255,255,255,.10); }
-.btn.danger{ background:var(--danger); }
+.btn{ border:0; padding:12px; border-radius:12px; font-weight:800; color:#fff; cursor:pointer; }
+.btn.primary{ background:#2563eb; flex:1; }
+.btn.secondary{ background:#374151; }
+.btn.danger{ background:#dc2626; }
 
-.hint{ margin-top:10px; color:var(--muted); font-size:13px; line-height:1.4; }
+.hint{ margin-top:10px; color:rgba(255,255,255,.75); font-size:13px; line-height:1.4; }
 
-.field{ display:grid; gap:6px; margin-top:10px; }
-.field span{ color:var(--muted); font-size:12px; }
-.field input{
-  padding:12px 12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.06);
-  color:var(--text);
-  font-size:16px;
-}
-
-/* 相機區塊大小（你覺得 OK 就不用改） */
 .scanner{
   margin-top:12px;
+  height:180px;
+  background:#000;
+  border-radius:14px;
   position:relative;
   overflow:hidden;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background:#000;
-  height: 170px;
 }
 .scanner video{ width:100%; height:100%; object-fit:cover; }
 
-/* ROI 虛線框：加大（你說太小） */
+/* ROI 框（大） */
 .scanBox{
   position:absolute;
   left:50%; top:50%;
-  width: 72%;       /* 原本太小，改大 */
-  height: 30%;      /* 原本太小，改大 */
+  width:88%;
+  height:42%;
   transform:translate(-50%,-50%);
-  border:2px dashed rgba(255,255,255,.90);
+  border:2px dashed #fff;
   border-radius:14px;
-  box-shadow:0 0 0 9999px rgba(0,0,0,.40);
-  pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.35);
 }
 
 .scanStatus{
   position:absolute;
-  left:10px; right:10px; bottom:10px;
-  background:rgba(0,0,0,.55);
-  padding:6px 10px;
-  border-radius:10px;
+  bottom:10px;
+  left:10px;
+  right:10px;
+  background:rgba(0,0,0,.6);
   font-size:12px;
-  color:rgba(255,255,255,.92);
+  padding:6px;
+  border-radius:8px;
 }
 
-.quickRow{ margin-top:10px; display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; }
+.field{ margin-top:10px; }
+.field span{ display:block; font-size:12px; opacity:.75; margin-bottom:6px; }
+.field input{ width:100%; padding:12px; border-radius:10px; border:0; }
 
-.list{ list-style:none; padding:0; margin:0; display:grid; gap:10px; }
-.list li{ border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+.quickRow,.quickQtyRow{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:10px;
+}
 
-/* dialog */
-.dialog{ border:0; border-radius:14px; padding:0; width:min(92vw, 460px); }
-.dialogBody{ padding:14px; background:var(--panel); color:var(--text); }
+.panelHeader{ display:flex; justify-content:space-between; align-items:center; }
+.panelTitle{ font-weight:900; }
+.badge{ background:#374151; padding:6px 10px; border-radius:999px; font-weight:800; }
+
+.list{ list-style:none; padding:0; margin:0; }
+.list li{ padding:10px; border-bottom:1px solid rgba(255,255,255,.1); }
+
+.dialog{ border-radius:14px; border:0; width:min(92vw,460px); }
+.dialogBody{ background:#111827; padding:14px; }
 .dialogTitle{ font-weight:900; margin-bottom:6px; }
-.dialogSub{ color:var(--muted); margin-bottom:12px; word-break:break-all; }
-.quickQtyRow{ display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:10px; }
+.dialogSub{ opacity:.8; margin-bottom:10px; word-break:break-all; }
 .dialogActions{ display:flex; gap:10px; margin-top:10px; }
-.dialogActions .btn{ flex:1; }
